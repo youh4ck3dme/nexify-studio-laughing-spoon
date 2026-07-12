@@ -1,18 +1,18 @@
 # FleetRevenue Copilot
 
-Monorepo MVP for fleet revenue optimization: upload rides + leads CSVs, get recommendations, simulate actions.
+Monorepo MVP for fleet revenue optimization: upload rides + leads CSVs, get AI-powered recommendations, and simulate revenue impact of selected actions.
 
 ## Structure
 
 | Path | Role |
 |------|------|
 | `apps/api` | Express API — health, recommendations, simulations |
-| `apps/web` | Vite dashboard — CSV import, KPIs, action selection |
-| `packages/shared` | Shared TypeScript contracts + runtime guards |
-| `data/templates` | Demo CSV templates for local dev and e2e |
+| `apps/web` | Vite SPA — CSV upload, KPI cards, action selection |
+| `packages/shared` | TypeScript contracts + runtime guards (shared by API and web) |
+| `api/index.ts` | Vercel serverless entry point (wraps Express app) |
+| `data/templates` | Demo CSV files for local dev and e2e tests |
 | `tests/e2e` | Playwright critical user flow |
-
-**Parallel agents:** see [AGENTS.md](./AGENTS.md) for workstream boundaries and fast verify commands.
+| `scripts/` | Smoke verification + CI helpers |
 
 ## Quick start
 
@@ -22,24 +22,24 @@ npm run dev
 ```
 
 - API: http://localhost:4000/health
-- Web: http://localhost:5173 (Vite dev) or http://localhost:4173 (`npm run start -w apps/web`)
+- Web: http://localhost:5173
 
 ## API
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/health` | GET | Service health + ISO timestamp |
-| `/api/recommendations` | POST | Analyze uploaded rides/leads rows |
-| `/api/simulations` | POST | Project KPI impact for a selected action |
+| Endpoint | Method | Body | Description |
+|----------|--------|------|-------------|
+| `/health` | GET | — | Service health + ISO timestamp |
+| `/api/recommendations` | POST | `{ rides?: InputRow[], leads?: InputRow[] }` | Analyze uploaded data, return KPIs + actions |
+| `/api/simulations` | POST | `{ actionId: string }` | Project KPI impact for a selected action |
 
 ## Verify
 
 ```bash
 npm run verify:smoke    # typecheck + build (all workspaces)
-npm test                # unit tests (32 tests)
-npm run test:e2e        # Playwright critical flow
+npm test                # 32 unit tests
+npm run test:e2e        # Playwright critical flow (upload → analyze → simulate)
 
-# Scoped (faster for parallel work):
+# Per-workspace (faster during parallel development):
 npm run verify:api
 npm run verify:web
 npm run verify:shared
@@ -47,27 +47,43 @@ npm run verify:shared
 
 ## Demo data
 
-Use templates in `data/templates/`:
+Upload the templates in `data/templates/` to run the full flow locally:
 - `rides.template.csv` — 3 ride rows
 - `leads.template.csv` — 3 lead rows
 
 ## Vercel deployment
 
-Both the web UI and API deploy to Vercel in one step:
+Both the web UI and API deploy to Vercel in a single step — no separate API host needed.
 
-- **Web** — static build from `apps/web/dist` (SPA)
-- **API** — serverless function at `api/index.ts` (routes `/api/*`)
+| Layer | How it deploys |
+|-------|---------------|
+| Web UI | Static build from `apps/web/dist` (SPA with HTML fallback) |
+| API | Serverless function at `api/index.ts`, routed from `/api/*` and `/health` |
+
+### Deploy via GitHub import (recommended)
+
+1. Open: https://vercel.com/new/import?s=https://github.com/youh4ck3dme/nexify-studio-laughing-spoon
+2. Select framework: **Other** (`vercel.json` handles everything)
+3. Click **Deploy** — no environment variables required
+
+### Deploy via Vercel CLI
 
 ```bash
-npm run build:vercel   # local smoke
+npx vercel --prod
 ```
 
-**Deploy via Vercel + GitHub (recommended):**
+### Local build smoke test
 
-1. Import fork: https://vercel.com/new/import?s=https://github.com/youh4ck3dme/nexify-studio-laughing-spoon
-2. Framework: Other (uses `vercel.json`)
-3. Deploy — no env vars needed
+```bash
+npm run build:vercel    # builds packages/shared + apps/web into apps/web/dist
+```
 
-`vercel.json` wires `/api/:path*` to the Express serverless function (`api/index.ts`) and SPA-falls back to `index.html`. Production build uses same-origin API (`import.meta.env.PROD` → empty base URL).
+### How it works
 
-**Local dev:** `npm run dev` (API on :4000, web on :5173). Override API base via `apps/web/.env`.
+`vercel.json` routes `/api/:path*` and `/health` to `api/index.ts` (the Express serverless handler) and SPA-falls back all other paths to `index.html`. In the production Vite build (`import.meta.env.PROD === true`), the web app calls the API using a same-origin relative URL — no `VITE_API_URL` env var needed.
+
+**Local dev override:** copy `apps/web/.env.example` to `apps/web/.env` and set `VITE_API_URL` to point at a different API host.
+
+## Parallel agent development
+
+See [AGENTS.md](./AGENTS.md) for workstream boundaries, owned paths, and fast verify commands per agent (A = API, B = Web, C = Shared, D = Data/E2E).
