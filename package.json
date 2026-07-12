@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "concurrently \"npm run dev -w apps/api\" \"npm run dev -w apps/web\"",
     "build": "npm run build --workspaces",
-    "build:vercel": "npm run build -w packages/shared && npm run build -w apps/web",
+    "build:vercel": "node scripts/build-vercel.mjs",
     "typecheck": "npm run typecheck --workspaces",
     "test": "npm run test --workspaces",
     "test:e2e": "playwright test",

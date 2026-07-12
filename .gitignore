@@ -18,3 +18,8 @@ playwright/.cache/
 
 # Vitest
 **/.vite/
+
+# Local deploy scratch files
+deploy-*.json
+mcp-*.json
+terminals/
