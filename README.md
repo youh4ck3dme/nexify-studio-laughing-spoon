@@ -50,3 +50,19 @@ npm run verify:shared
 Use templates in `data/templates/`:
 - `rides.template.csv` — 3 ride rows
 - `leads.template.csv` — 3 lead rows
+
+## Vercel deployment
+
+Both the web UI and API deploy to Vercel in one step:
+
+- **Web** — static build from `apps/web/dist` (SPA)
+- **API** — serverless function at `api/index.ts` (routes `/api/*`)
+
+```bash
+# one-step Vercel build
+npm run build:vercel
+```
+
+`vercel.json` wires `/api/:path*` to the Express serverless function and SPA-falls back everything else to `index.html`. No `VITE_API_URL` needed — production build auto-uses same-origin.
+
+**Local dev:** `npm run dev` (API on :4000, web on :5173). Override API base via `apps/web/.env`.

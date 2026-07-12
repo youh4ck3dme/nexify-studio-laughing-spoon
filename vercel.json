@@ -3,10 +3,14 @@
   "installCommand": "npm install",
   "buildCommand": "npm run build:vercel",
   "outputDirectory": "apps/web/dist",
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
+  "functions": {
+    "api/index.ts": {
+      "includeFiles": "apps/api/src/**,packages/shared/**"
     }
+  },
+  "rewrites": [
+    { "source": "/health", "destination": "/api/index" },
+    { "source": "/api/:path*", "destination": "/api/index" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

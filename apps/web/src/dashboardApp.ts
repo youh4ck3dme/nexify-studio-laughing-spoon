@@ -42,12 +42,30 @@ function createUploadState(): UploadState {
   return { fileName: null, rows: [], status: "", error: "" };
 }
 
+const DEFAULT_API_BASE = import.meta.env.PROD ? "" : "http://localhost:4000";
+
+function resolveApiBaseUrl(): string {
+  const envVal: string | undefined = import.meta.env.VITE_API_URL;
+  if (envVal !== undefined) {
+    return envVal.replace(/\/$/, "");
+  }
+  return DEFAULT_API_BASE;
+}
+
+function resolveApiUrls(options: Pick<DashboardAppOptions, "apiUrl" | "simulationsApiUrl">) {
+  const base = resolveApiBaseUrl();
+  return {
+    apiUrl: options.apiUrl ?? `${base}/api/recommendations`,
+    simulationsApiUrl: options.simulationsApiUrl ?? `${base}/api/simulations`
+  };
+}
+
 export function mountDashboardApp({
   root,
   fetchImpl = window.fetch.bind(window),
-  apiUrl = "http://localhost:4000/api/recommendations",
-  simulationsApiUrl = "http://localhost:4000/api/simulations"
+  ...urlOptions
 }: DashboardAppOptions): void {
+  const { apiUrl, simulationsApiUrl } = resolveApiUrls(urlOptions);
   root.innerHTML = `
     <a class="skip-link" href="#main-content">Skip to content</a>
     <main id="main-content" class="container">
