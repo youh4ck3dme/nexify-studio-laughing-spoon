@@ -21,5 +21,25 @@ playwright/.cache/
 
 # Local deploy scratch files
 deploy-*.json
+deploy-*/
 mcp-*.json
+.deploy-*/
+.mcp-*/
+.last-mcp-*.json
+chunk-*.txt
+mcp-chunk-*.txt
+mcp-args-b64.txt
+agent-tools/
+assemble-deploy.cjs
+deploy-export.cjs
+extra-*-files.json
+full-mcp-deploy-args.json
+scripts/_*
+scripts/*mcp*
+scripts/invoke-deploy*
+scripts/load-deploy*
+scripts/call-mcp*
+scripts/emit-deploy*
+scripts/prepare-mcp*
+scripts/run-*mcp*
 terminals/
