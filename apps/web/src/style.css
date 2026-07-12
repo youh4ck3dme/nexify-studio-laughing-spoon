@@ -33,6 +33,22 @@ body {
   flex-wrap: wrap;
 }
 
+.upload-row {
+  align-items: flex-start;
+}
+
+.upload-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 220px;
+}
+
+.upload-field label {
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
 button {
   border: 0;
   border-radius: 10px;
@@ -125,4 +141,51 @@ button:disabled {
   background: rgba(37, 99, 235, 0.15);
   font-size: 0.85rem;
   font-weight: 600;
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: #2563eb;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 0 0 8px 0;
+  z-index: 100;
+}
+
+.skip-link:focus-visible {
+  left: 0;
+}
+
+button:focus-visible {
+  outline: 3px solid #93c5fd;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+@media (max-width: 1024px) {
+  .container {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .row {
+    flex-direction: column;
+  }
+
+  .row button {
+    width: 100%;
+  }
+
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
 }

@@ -1,4 +1,4 @@
-import type { RecommendationResponse } from "@fleet/shared";
+import type { RecommendationResponse, SimulationResponse } from "@fleet/shared";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mountDashboardApp } from "./dashboardApp";
 
@@ -26,41 +26,49 @@ const successResponse: RecommendationResponse = {
   ]
 };
 
+const simulationResponse: SimulationResponse = {
+  actionId: "dispatch-peak-zones",
+  appliedAction: successResponse.actions[0],
+  projectedSummary: {
+    estimatedRevenueLiftPct: 12.6,
+    estimatedIdleTimeDropPct: 12.1,
+    estimatedLeadConversionLiftPct: 13.1
+  }
+};
+
 describe("mountDashboardApp", () => {
   beforeEach(() => {
     document.body.innerHTML = '<div id="app"></div>';
   });
 
-  it("gates analysis until both imports finish and reflects import state transitions", () => {
+  it("gates analysis until both CSVs are uploaded and reflects import state transitions", async () => {
     const fetchImpl = vi.fn() as unknown as FetchMock;
     setup(fetchImpl);
     const runAnalysisButton = getButton("#run-analysis");
 
     expect(runAnalysisButton.disabled).toBe(true);
-    expect(text("#import-state")).toBe("Import rides and leads to unlock analysis.");
+    expect(text("#import-state")).toBe("Upload rides and leads CSV files to unlock analysis.");
 
     runAnalysisButton.click();
     expect(fetchImpl).not.toHaveBeenCalled();
 
-    getButton("#import-rides").click();
-    expect(text("#import-state")).toBe("Rides ready (2). Import leads to unlock analysis.");
+    await uploadCsv("#rides-file-input", "rides.csv", "ride_id,zone\nr1,A\nr2,B");
+    expect(text("#rides-upload-status")).toBe("Rides CSV loaded: rides.csv (2 rows)");
     expect(runAnalysisButton.disabled).toBe(true);
 
-    getButton("#import-leads").click();
-    expect(text("#import-state")).toBe(
-      "Rides and leads ready. Run analysis to refresh the premium dashboard."
-    );
-    expect(text("#analysis-status")).toBe("Premium analysis is ready when you are.");
+    await uploadCsv("#leads-file-input", "leads.csv", "lead_id,source\nl1,web");
+    expect(text("#leads-upload-status")).toBe("Leads CSV loaded: leads.csv (1 rows)");
     expect(runAnalysisButton.disabled).toBe(false);
+    expect(text("#import-state")).toBe("Rides and leads ready. Run analysis to continue.");
   });
 
-  it("shows loading and success states for the premium dashboard analysis flow", async () => {
+  it("shows loading and success states for the analysis flow", async () => {
     const pendingResponse = deferred<Response>();
     const fetchImpl = vi.fn(() => pendingResponse.promise) as unknown as FetchMock;
     setup(fetchImpl);
 
-    getButton("#import-rides").click();
-    getButton("#import-leads").click();
+    await uploadCsv("#rides-file-input", "rides.csv", "ride_id,zone\nr1,A\nr2,B");
+    await uploadCsv("#leads-file-input", "leads.csv", "lead_id,source\nl1,web\nl2,phone");
     const runAnalysisButton = getButton("#run-analysis");
 
     runAnalysisButton.click();
@@ -68,31 +76,31 @@ describe("mountDashboardApp", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(runAnalysisButton.disabled).toBe(true);
     expect(runAnalysisButton.textContent?.trim()).toBe("Analyzing...");
-    expect(text("#analysis-status")).toBe("Refreshing premium dashboard...");
+    expect(text("#import-state")).toBe("Analyzing...");
 
     pendingResponse.resolve(createResponse(successResponse));
     await flushPromises();
 
     expect(runAnalysisButton.disabled).toBe(false);
     expect(runAnalysisButton.textContent?.trim()).toBe("Run analysis");
-    expect(text("#analysis-status")).toBe("Premium dashboard updated from 2 rides and 2 leads.");
+    expect(text("#import-state")).toBe("Analysis complete. Select an action to simulate.");
     expect(text("#kpi-grid")).toContain("11.8%");
     expect(document.querySelectorAll("#action-list button").length).toBe(2);
   });
 
-  it("shows an error state when premium analysis fails", async () => {
+  it("shows an error state when analysis fails", async () => {
     const fetchImpl = vi.fn(async () => createResponse({}, 503)) as unknown as FetchMock;
     setup(fetchImpl);
 
-    getButton("#import-rides").click();
-    getButton("#import-leads").click();
+    await uploadCsv("#rides-file-input", "rides.csv", "ride_id,zone\nr1,A\nr2,B");
+    await uploadCsv("#leads-file-input", "leads.csv", "lead_id,source\nl1,web\nl2,phone");
     getButton("#run-analysis").click();
     await flushPromises();
 
-    expect(text("#analysis-status")).toBe("Premium analysis failed: API error: 503");
-    expect(text("#kpi-grid")).toBe("Run analysis to populate premium KPIs.");
+    expect(text("#import-state")).toBe("Analysis failed: API error: 503");
+    expect(text("#kpi-grid")).toBe("Run analysis to populate KPIs.");
     expect(text("#action-list")).toBe(
-      "No actions to apply yet. Run analysis to generate recommendations."
+      "No actions to select yet. Run analysis to generate recommendations."
     );
   });
 
@@ -110,35 +118,49 @@ describe("mountDashboardApp", () => {
     const fetchImpl = vi.fn(async () => createResponse(emptyResponse)) as unknown as FetchMock;
     setup(fetchImpl);
 
-    getButton("#import-rides").click();
-    getButton("#import-leads").click();
+    await uploadCsv("#rides-file-input", "rides.csv", "ride_id,zone\nr1,A\nr2,B");
+    await uploadCsv("#leads-file-input", "leads.csv", "lead_id,source\nl1,web\nl2,phone");
     getButton("#run-analysis").click();
     await flushPromises();
 
-    expect(text("#analysis-status")).toBe(
+    expect(text("#import-state")).toBe(
       "Analysis completed, but no recommendations matched the current import."
     );
     expect(text("#kpi-grid")).toContain("3.2%");
-    expect(text("#action-list")).toBe("No actions recommended for the current import.");
+    expect(text("#action-list")).toBe("No actions to select yet. Run analysis to generate recommendations.");
   });
 
-  it("shows applied-action feedback after a recommendation is accepted", async () => {
-    const fetchImpl = vi.fn(async () => createResponse(successResponse)) as unknown as FetchMock;
+  it("selects an action and applies a simulation, updating KPIs and feedback", async () => {
+    const fetchImpl = vi.fn(async (url: RequestInfo | URL) => {
+      const href = typeof url === "string" ? url : url.toString();
+      if (href.includes("/api/simulations")) {
+        return createResponse(simulationResponse);
+      }
+      return createResponse(successResponse);
+    }) as unknown as FetchMock;
     setup(fetchImpl);
 
-    getButton("#import-rides").click();
-    getButton("#import-leads").click();
+    await uploadCsv("#rides-file-input", "rides.csv", "ride_id,zone\nr1,A\nr2,B");
+    await uploadCsv("#leads-file-input", "leads.csv", "lead_id,source\nl1,web\nl2,phone");
     getButton("#run-analysis").click();
     await flushPromises();
 
     getButton('button[data-action-id="dispatch-peak-zones"]').click();
-    const applyButton = getButton('button[data-action-id="dispatch-peak-zones"]');
-
-    expect(text("#action-feedback")).toBe(
-      "Applied Reallocate 3 vehicles to Zone A between 17:00-19:00 to the premium plan."
+    expect(text("#selection-state")).toBe(
+      "Selected action: Reallocate 3 vehicles to Zone A between 17:00-19:00"
     );
-    expect(applyButton.disabled).toBe(true);
-    expect(applyButton.textContent?.replace(/\s+/g, " ").trim()).toBe("Applied");
+
+    getButton("#apply-simulation").click();
+    await flushPromises();
+
+    expect(text("#applied-state")).toBe(
+      "Simulation applied: Reallocate 3 vehicles to Zone A between 17:00-19:00"
+    );
+    expect(text("#kpi-state")).toBe(
+      'Applied simulation for "Reallocate 3 vehicles to Zone A between 17:00-19:00".'
+    );
+    expect(text("#kpi-grid")).toContain("12.6%");
+    expect(text("#kpi-grid")).toContain("12.1%");
   });
 });
 
@@ -150,6 +172,23 @@ function setup(fetchImpl: typeof fetch): void {
   }
 
   mountDashboardApp({ root, fetchImpl });
+}
+
+async function uploadCsv(selector: string, fileName: string, content: string): Promise<void> {
+  const input = document.querySelector<HTMLInputElement>(selector);
+
+  if (!input) {
+    throw new Error(`Missing file input for selector: ${selector}`);
+  }
+
+  const file = new File([content], fileName, { type: "text/csv" });
+  Object.defineProperty(input, "files", {
+    value: [file],
+    configurable: true
+  });
+
+  input.dispatchEvent(new Event("change"));
+  await flushPromises();
 }
 
 function getButton(selector: string): HTMLButtonElement {
@@ -190,6 +229,7 @@ function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
 }
 
 async function flushPromises(): Promise<void> {
+  await Promise.resolve();
   await Promise.resolve();
   await Promise.resolve();
 }

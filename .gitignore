@@ -4,3 +4,17 @@ dist/
 .DS_Store
 npm-debug.log*
 
+# Local MCP descriptors (not app source)
+mcps/
+
+# IDE / agent tooling
+.claude/
+
+# Test artifacts
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# Vitest
+**/.vite/

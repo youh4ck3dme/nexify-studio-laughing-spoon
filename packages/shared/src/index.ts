@@ -24,6 +24,32 @@ export type RecommendationResponse = {
   actions: RecommendationAction[];
 };
 
+export type ProjectionSummary = {
+  estimatedRevenueLiftPct: number;
+  estimatedIdleTimeDropPct: number;
+  estimatedLeadConversionLiftPct: number;
+};
+
+export type SimulationRequest = {
+  actionId: RecommendationAction["id"];
+};
+
+export type SimulationResponse = {
+  actionId: RecommendationAction["id"];
+  appliedAction: RecommendationAction;
+  projectedSummary: ProjectionSummary;
+};
+
+export type ValidationError = {
+  path: string;
+  message: string;
+};
+
+export type ValidationErrorResponse = {
+  error: "validation_failed";
+  details: ValidationError[];
+};
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 

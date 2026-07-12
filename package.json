@@ -9,9 +9,16 @@
   "scripts": {
     "dev": "concurrently \"npm run dev -w apps/api\" \"npm run dev -w apps/web\"",
     "build": "npm run build --workspaces",
-    "typecheck": "npm run typecheck --workspaces"
+    "typecheck": "npm run typecheck --workspaces",
+    "test": "npm run test --workspaces",
+    "test:e2e": "playwright test",
+    "verify:smoke": "node ./scripts/verify-build-typecheck-smoke.mjs",
+    "verify:api": "npm run typecheck -w apps/api && npm run build -w apps/api && npm run test -w apps/api",
+    "verify:web": "npm run typecheck -w apps/web && npm run build -w apps/web && npm run test -w apps/web",
+    "verify:shared": "npm run typecheck -w packages/shared && npm run build -w packages/shared && npm run test -w packages/shared"
   },
   "devDependencies": {
+    "@playwright/test": "^1.54.1",
     "concurrently": "^9.0.1",
     "typescript": "^5.6.3"
   }
