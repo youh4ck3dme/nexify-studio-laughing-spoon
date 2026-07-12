@@ -59,10 +59,15 @@ Both the web UI and API deploy to Vercel in one step:
 - **API** — serverless function at `api/index.ts` (routes `/api/*`)
 
 ```bash
-# one-step Vercel build
-npm run build:vercel
+npm run build:vercel   # local smoke
 ```
 
-`vercel.json` wires `/api/:path*` to the Express serverless function and SPA-falls back everything else to `index.html`. No `VITE_API_URL` needed — production build auto-uses same-origin.
+**Deploy via Vercel + GitHub (recommended):**
+
+1. Import fork: https://vercel.com/new/import?s=https://github.com/youh4ck3dme/nexify-studio-laughing-spoon
+2. Framework: Other (uses `vercel.json`)
+3. Deploy — no env vars needed
+
+`vercel.json` wires `/api/:path*` to the Express serverless function (`api/index.ts`) and SPA-falls back to `index.html`. Production build uses same-origin API (`import.meta.env.PROD` → empty base URL).
 
 **Local dev:** `npm run dev` (API on :4000, web on :5173). Override API base via `apps/web/.env`.
