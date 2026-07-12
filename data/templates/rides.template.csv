@@ -1,0 +1,5 @@
+ride_id,zone,hour_slot,fare,driver_id,status
+r1,A,17,14.5,d101,completed
+r2,B,18,11.0,d087,completed
+r3,A,19,16.2,d203,cancelled
+

@@ -1,0 +1,5 @@
+lead_id,source,priority,created_at,status
+l1,web,A,2026-07-12T08:10:00Z,new
+l2,phone,B,2026-07-12T08:15:00Z,contacted
+l3,partner,A,2026-07-12T08:30:00Z,new
+
