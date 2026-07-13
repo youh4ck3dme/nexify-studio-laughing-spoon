@@ -1,6 +1,6 @@
 import { Router } from "express";
 import type { RecommendationRequest } from "@fleet/shared";
-import { buildRecommendationResponse } from "../fixtures/recommendations.js";
+import { runAnalysis } from "../services/analyzeFleet.js";
 import {
   isPlainObject,
   sendValidationError,
@@ -32,5 +32,5 @@ recommendationsRouter.post("/api/recommendations", (req, res) => {
   }
 
   const body = { rides, leads } as Required<RecommendationRequest>;
-  return res.json(buildRecommendationResponse(body.rides.length, body.leads.length));
+  return res.json(runAnalysis(body.rides, body.leads));
 });

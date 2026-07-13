@@ -1,5 +1,5 @@
 import "./style.css";
-import { mountDashboardApp } from "./dashboardApp";
+import { mountApp } from "./app/mountApp";
 
 const app = document.querySelector<HTMLDivElement>("#app");
 
@@ -7,4 +7,4 @@ if (!app) {
   throw new Error("App root not found");
 }
 
-mountDashboardApp({ root: app });
+mountApp({ root: app });

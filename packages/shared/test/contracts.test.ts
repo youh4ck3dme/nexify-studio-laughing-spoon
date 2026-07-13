@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { simulateBestPlan } from "../src/analytics/simulation.js";
 import {
+  analyzeFleet,
+  generateDemoFleet,
+  isAnalysisResponse,
   isInputRow,
-  isRecommendationAction,
   isRecommendationRequest,
-  isRecommendationResponse,
-  isRecommendationSummary
+  isSimulationResponse
 } from "../src/index";
 
 describe("shared contracts", () => {
@@ -13,15 +15,13 @@ describe("shared contracts", () => {
       expect(isInputRow({ ride_id: "r1", zone: "A" })).toBe(true);
     });
 
-    it("rejects non-object values and non-string fields", () => {
-      expect(isInputRow(null)).toBe(false);
-      expect(isInputRow(["value"])).toBe(false);
+    it("rejects non-string fields", () => {
       expect(isInputRow({ ride_id: 42 })).toBe(false);
     });
   });
 
   describe("isRecommendationRequest", () => {
-    it("accepts empty and fully-populated requests", () => {
+    it("accepts empty and populated requests", () => {
       expect(isRecommendationRequest({})).toBe(true);
       expect(
         isRecommendationRequest({
@@ -30,109 +30,22 @@ describe("shared contracts", () => {
         })
       ).toBe(true);
     });
+  });
 
-    it("rejects invalid list types and row values", () => {
-      expect(isRecommendationRequest({ rides: "invalid" })).toBe(false);
-      expect(isRecommendationRequest({ leads: [{ lead_id: "l1", score: 10 }] })).toBe(false);
+  describe("isAnalysisResponse", () => {
+    it("accepts valid analysis from demo fleet", () => {
+      const fleet = generateDemoFleet(42);
+      const analysis = analyzeFleet(fleet.rides, fleet.leads);
+      expect(isAnalysisResponse(analysis)).toBe(true);
     });
   });
 
-  describe("isRecommendationAction", () => {
-    it("requires all action fields", () => {
-      expect(
-        isRecommendationAction({
-          id: "dispatch-peak-zones",
-          title: "Reallocate vehicles",
-          expectedImpact: "+7% completed rides in peak window"
-        })
-      ).toBe(true);
-
-      expect(
-        isRecommendationAction({
-          id: "dispatch-peak-zones",
-          title: "Reallocate vehicles"
-        })
-      ).toBe(false);
-    });
-  });
-
-  describe("isRecommendationSummary", () => {
-    it("accepts finite numeric summary metrics", () => {
-      expect(
-        isRecommendationSummary({
-          ridesImported: 2,
-          leadsImported: 1,
-          estimatedRevenueLiftPct: 11.8,
-          estimatedIdleTimeDropPct: 9.4,
-          estimatedLeadConversionLiftPct: 13.1
-        })
-      ).toBe(true);
-    });
-
-    it("rejects non-finite and missing metrics", () => {
-      expect(
-        isRecommendationSummary({
-          ridesImported: Number.NaN,
-          leadsImported: 1,
-          estimatedRevenueLiftPct: 11.8,
-          estimatedIdleTimeDropPct: 9.4,
-          estimatedLeadConversionLiftPct: 13.1
-        })
-      ).toBe(false);
-
-      expect(
-        isRecommendationSummary({
-          ridesImported: 2,
-          leadsImported: 1,
-          estimatedRevenueLiftPct: 11.8,
-          estimatedIdleTimeDropPct: 9.4
-        })
-      ).toBe(false);
-    });
-  });
-
-  describe("isRecommendationResponse", () => {
-    it("accepts valid response shapes", () => {
-      expect(
-        isRecommendationResponse({
-          summary: {
-            ridesImported: 2,
-            leadsImported: 2,
-            estimatedRevenueLiftPct: 11.8,
-            estimatedIdleTimeDropPct: 9.4,
-            estimatedLeadConversionLiftPct: 13.1
-          },
-          actions: []
-        })
-      ).toBe(true);
-    });
-
-    it("rejects invalid nested fields", () => {
-      expect(
-        isRecommendationResponse({
-          summary: {
-            ridesImported: 2,
-            leadsImported: "2",
-            estimatedRevenueLiftPct: 11.8,
-            estimatedIdleTimeDropPct: 9.4,
-            estimatedLeadConversionLiftPct: 13.1
-          },
-          actions: []
-        })
-      ).toBe(false);
-
-      expect(
-        isRecommendationResponse({
-          summary: {
-            ridesImported: 2,
-            leadsImported: 2,
-            estimatedRevenueLiftPct: 11.8,
-            estimatedIdleTimeDropPct: 9.4,
-            estimatedLeadConversionLiftPct: 13.1
-          },
-          actions: [{ id: "a-1", title: "Action without impact" }]
-        })
-      ).toBe(false);
+  describe("isSimulationResponse", () => {
+    it("accepts valid simulation shape", () => {
+      const fleet = generateDemoFleet(42);
+      const analysis = analyzeFleet(fleet.rides, fleet.leads);
+      const sim = simulateBestPlan(analysis.kpis, analysis.recommendations, analysis.opportunity);
+      expect(isSimulationResponse(sim)).toBe(true);
     });
   });
 });

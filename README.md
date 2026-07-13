@@ -1,18 +1,16 @@
-# FleetRevenue Copilot
+# FleetRevenue AI
 
-Monorepo MVP for fleet revenue optimization: upload rides + leads CSVs, get AI-powered recommendations, and simulate revenue impact of selected actions.
+Turn fleet ride and lead exports into prioritized, measurable revenue actions — a hackathon-ready demo deployable on Vercel with no API keys.
 
-## Structure
+## What it does
 
-| Path | Role |
-|------|------|
-| `apps/api` | Express API — health, recommendations, simulations |
-| `apps/web` | Vite SPA — CSV upload, KPI cards, action selection |
-| `packages/shared` | TypeScript contracts + runtime guards (shared by API and web) |
-| `api/index.ts` | Vercel serverless entry point (wraps Express app) |
-| `data/templates` | Demo CSV files for local dev and e2e tests |
-| `tests/e2e` | Playwright critical user flow |
-| `scripts/` | Smoke verification + CI helpers |
+1. **Launch demo** or **upload CSV** (rides + leads)
+2. **Analyze** fleet KPIs, zone imbalances, and leakage
+3. **Recommend** prioritized actions with confidence scores
+4. **Simulate** multi-action plans with sliders and waterfall chart
+5. **Executive brief** — CEO-ready summary with transparent methodology
+
+Demo mode runs **fully offline** in the browser (Web Worker). Production API uses the same `@fleet/shared` analytics engine.
 
 ## Quick start
 
@@ -21,69 +19,93 @@ npm install
 npm run dev
 ```
 
-- API: http://localhost:4000/health
-- Web: http://localhost:5173
+| Service | URL |
+|---------|-----|
+| Web UI | http://localhost:5173 |
+| API | http://localhost:4000/health |
+
+## Architecture
+
+```
+packages/shared/     Single analytics engine (KPIs, zones, opportunity, simulation)
+apps/web/            Vite SPA — 7-screen demo flow + Judge Mode
+apps/api/            Express API on Vercel serverless
+data/samples/        Deterministic demo CSV export (seed 42)
+```
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the hybrid browser/API diagram.
+
+## Demo KPIs (seed 42, after judge-proof fix)
+
+| Metric | Value |
+|--------|-------|
+| Revenue (28 days) | €5,685 |
+| Utilization | 47.7% |
+| Base monthly upside | €2,297/mo |
+| Best / Worst | €2,940 / €1,654 |
+| Annual best-case (WOW) | €35,280/yr |
+
+All figures are **modeled estimates** — subject to pilot validation. See [docs/METRICS.md](docs/METRICS.md).
 
 ## API
 
-| Endpoint | Method | Body | Description |
-|----------|--------|------|-------------|
-| `/health` | GET | — | Service health + ISO timestamp |
-| `/api/recommendations` | POST | `{ rides?: InputRow[], leads?: InputRow[] }` | Analyze uploaded data, return KPIs + actions |
-| `/api/simulations` | POST | `{ actionId: string }` | Project KPI impact for a selected action |
+| Endpoint | Method | Body | Response |
+|----------|--------|------|----------|
+| `/health` | GET | — | `{ service, status, timestamp }` |
+| `/api/recommendations` | POST | `{ rides?, leads? }` | `AnalysisResponse` |
+| `/api/simulations` | POST | `{ actions, baselineKpis, recommendations }` | `SimulationResponse` |
 
 ## Verify
 
 ```bash
-npm run verify:smoke    # typecheck + build (all workspaces)
-npm test                # 32 unit tests
-npm run test:e2e        # Playwright critical flow (upload → analyze → simulate)
-
-# Per-workspace (faster during parallel development):
-npm run verify:api
-npm run verify:web
-npm run verify:shared
+npm run verify:smoke    # typecheck + build all workspaces (~8s)
+npm test                # unit tests (~45+)
+npm run test:e2e        # Playwright critical flows
+npm run build:vercel    # production web build
 ```
 
-## Demo data
-
-Upload the templates in `data/templates/` to run the full flow locally:
-- `rides.template.csv` — 3 ride rows
-- `leads.template.csv` — 3 lead rows
-
-## Vercel deployment
-
-Both the web UI and API deploy to Vercel in a single step — no separate API host needed.
-
-| Layer | How it deploys |
-|-------|---------------|
-| Web UI | Static build from `apps/web/dist` (SPA with HTML fallback) |
-| API | Serverless function at `api/index.ts`, routed from `/api/*` and `/health` |
-
-### Deploy via GitHub import (recommended)
-
-1. Open: https://vercel.com/new/import?s=https://github.com/youh4ck3dme/nexify-studio-laughing-spoon
-2. Select framework: **Other** (`vercel.json` handles everything)
-3. Click **Deploy** — no environment variables required
-
-### Deploy via Vercel CLI
+## Sample data
 
 ```bash
+node scripts/export-demo-csv.mjs   # regenerates data/samples/*.csv
+```
+
+- `data/samples/rides-demo.csv` — 500 rides, 22 drivers, 28-day period
+- `data/samples/leads-demo.csv` — 150 leads
+- `data/templates/` — minimal 3-row templates for e2e CSV upload test
+
+## Judge Mode
+
+Toggle **Judge mode** in the header for 10 pre-written Q&A answers (real vs simulated, methodology, pilot plan). Persists in `sessionStorage`.
+
+## Deploy (Vercel)
+
+```bash
+npm run verify:smoke && npm test && npm run test:e2e && npm run build:vercel
 npx vercel --prod
 ```
 
-### Local build smoke test
+Project: `fleetrevenue-copilot`. No environment variables required for demo.
 
-```bash
-npm run build:vercel    # builds packages/shared + apps/web into apps/web/dist
-```
+## Privacy
 
-### How it works
+- Demo analysis runs in-browser; CSV data is not sent to external services
+- No LLM calls, no third-party analytics in demo mode
+- API routes available for server-side analysis when deployed
 
-`vercel.json` routes `/api/:path*` and `/health` to `api/index.ts` (the Express serverless handler) and SPA-falls back all other paths to `index.html`. In the production Vite build (`import.meta.env.PROD === true`), the web app calls the API using a same-origin relative URL — no `VITE_API_URL` env var needed.
+## Limits & roadmap
 
-**Local dev override:** copy `apps/web/.env.example` to `apps/web/.env` and set `VITE_API_URL` to point at a different API host.
+- Rule-based recommendations (LLM-ready architecture, not wired today)
+- Simulation caps revenue lift at +25% of baseline period
+- Opportunity capped at 55% of monthly run-rate
+- Roadmap: live dispatch integration, A/B pilot tracking, LLM narrative layer
 
-## Parallel agent development
+## Docs for judges
 
-See [AGENTS.md](./AGENTS.md) for workstream boundaries, owned paths, and fast verify commands per agent (A = API, B = Web, C = Shared, D = Data/E2E).
+- [docs/JUDGES.md](docs/JUDGES.md) — pitch script, demo flow, Q&A
+- [docs/METRICS.md](docs/METRICS.md) — every KPI definition + worked example
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — system diagram, privacy boundaries
+
+## License
+
+Private hackathon submission.
