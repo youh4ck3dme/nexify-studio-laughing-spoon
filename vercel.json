@@ -5,7 +5,7 @@
   "outputDirectory": "apps/web/dist",
   "functions": {
     "api/index.ts": {
-      "includeFiles": "apps/api/src/**,packages/shared/**"
+      "includeFiles": "apps/api/src/**,packages/shared/dist/**,packages/shared/package.json"
     }
   },
   "rewrites": [
